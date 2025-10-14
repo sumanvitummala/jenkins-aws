@@ -1,20 +1,53 @@
 pipeline {
     agent any
+
+    environment {
+        AWS_REGION = 'us-east-1'
+        ECR_ACCOUNT_ID = '987686461903'
+        ECR_REPO = 'docker-image'
+        IMAGE_TAG = '1.0'
+        IMAGE_NAME = "${ECR_REPO}:${IMAGE_TAG}"
+        FULL_ECR_NAME = "${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
+    }
+
     stages {
+
         stage('Build Docker Image') {
             steps {
-                // This uses Dockerfile in the same folder
-                bat 'docker build -t myhtml-image:1.0 .'
+                echo "Building Docker image..."
+                bat "docker build -t ${IMAGE_NAME} ."
             }
         }
-        stage('Run Docker Container') {
+
+        stage('Tag Docker Image for ECR') {
             steps {
-                // Stop and remove previous container if exists
-                bat 'docker stop myhtml-container || exit 0'
-                bat 'docker rm myhtml-container || exit 0'
-                // Run container
-                bat 'docker run -d -p 8081:80 --name myhtml-container myhtml-image:1.0'
+                echo "Tagging Docker image for ECR..."
+                bat "docker tag ${IMAGE_NAME} ${FULL_ECR_NAME}"
             }
+        }
+
+        stage('Login to AWS ECR') {
+            steps {
+                echo "Logging in to AWS ECR..."
+                bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+            }
+        }
+
+        stage('Push Docker Image to ECR') {
+            steps {
+                echo "Pushing Docker image to AWS ECR..."
+                bat "docker push ${FULL_ECR_NAME}"
+            }
+        }
+
+    }
+
+    post {
+        success {
+            echo "Docker image successfully pushed to AWS ECR!"
+        }
+        failure {
+            echo "Build failed. Check the console output for errors."
         }
     }
 }
