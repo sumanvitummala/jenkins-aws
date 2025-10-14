@@ -2,12 +2,12 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = 'us-east-1'
-        ECR_ACCOUNT_ID = '987686461903'
-        ECR_REPO = 'docker-image'
-        IMAGE_TAG = '1.0'
-        IMAGE_NAME = "${ECR_REPO}:${IMAGE_TAG}"
-        FULL_ECR_NAME = "${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
+        AWS_REGION = 'ap-south-1'                  // Updated region
+        ECR_ACCOUNT_ID = '987686461903'           // Your AWS account ID
+        ECR_REPO = 'docker-image'                 // Your ECR repository name
+        IMAGE_TAG = '1.0'                          // Docker image version tag
+        IMAGE_NAME = "${ECR_REPO}:${IMAGE_TAG}"    // Local Docker image name
+        FULL_ECR_NAME = "${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}" // Full ECR image path
     }
 
     stages {
@@ -51,3 +51,4 @@ pipeline {
         }
     }
 }
+
