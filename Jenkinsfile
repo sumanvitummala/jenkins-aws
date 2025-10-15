@@ -129,11 +129,15 @@ pipeline {
     stage('Deploy Docker Container on EC2') {
     steps {
         script {
-            def instance_ip = sh(script: 'terraform output -raw instance_public_ip', returnStdout: true).trim()
-            bat "ssh -o StrictHostKeyChecking=no ec2-user@${instance_ip} 'docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0'"
+            def instance_ip = bat(script: 'terraform output -raw instance_public_ip', returnStdout: true).trim()
+            bat """
+            ssh -o StrictHostKeyChecking=no ec2-user@${instance_ip} ^
+            "docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
+            """
         }
     }
 }
+
 
 
 
