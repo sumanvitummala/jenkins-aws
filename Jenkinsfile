@@ -126,25 +126,27 @@ stage('Terraform Apply') {
         }
 
     stage('Deploy Docker Container on EC2') {
-    steps {
-        echo "🚀 Deploying Docker container on EC2..."
-        script {
-            def INSTANCE_IP = readFile('instance_ip.txt').trim()
-            echo "✅ EC2 Instance IP: ${INSTANCE_IP}"
+    echo "🚀 Deploying Docker container on EC2..."
+    script {
+        def instanceIP = readFile('instance_ip.txt').trim()
+        echo "✅ EC2 Instance IP: ${instanceIP}"
 
-            withCredentials([sshUserPrivateKey(
-                credentialsId: 'ec2-key',
-                keyFileVariable: 'EC2_KEY_PATH',
-                usernameVariable: 'EC2_USER'
-            )]) {
-                bat """
-                ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "docker stop my-container || true && docker rm my-container || true"
-                ssh -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
-                """
-            }
+        withCredentials([file(credentialsId: 'EC2_KEY_PATH', variable: 'SSH_KEY')]) {
+            // Restrict key permissions on Windows
+            bat """
+            powershell -Command "icacls %SSH_KEY% /inheritance:r"
+            powershell -Command "icacls %SSH_KEY% /grant:r '%USERNAME%:R'"
+            """
+
+            // Stop and remove existing container
+            bat "ssh -o StrictHostKeyChecking=no -i \"%SSH_KEY%\" HPLAPTOP\$@${instanceIP} \"docker stop my-container || true && docker rm my-container || true\""
+
+            // Run the new container
+            bat "ssh -i \"%SSH_KEY%\" HPLAPTOP\$@${instanceIP} \"docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0\""
         }
     }
 }
+
 
 
 
