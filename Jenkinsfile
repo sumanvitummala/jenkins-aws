@@ -98,25 +98,31 @@ pipeline {
             }
         }
 
-        stage('Terraform Apply') {
-    steps {
-        echo "🚀 Applying Terraform Configuration..."
-        dir('.') {
-            withCredentials([[
-                $class: 'AmazonWebServicesCredentialsBinding', 
-                credentialsId: 'aws-credentials'
-            ]]) {
-                bat '''
-                set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                terraform apply -auto-approve
-                for /f "delims=" %%i in ('terraform output -raw instance_public_ip') do set INSTANCE_IP=%%i
+        
+    
+stage('Terraform Apply') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
+            steps {
+                echo "🚀 Applying Terraform Configuration..."
+                dir("${TERRAFORM_DIR}") {
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        bat """
+                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                        set PATH=%PATH%;C:/Terraform
+                        terraform apply -auto-approve
+                        for /f "delims=" %%i in ('terraform output -raw instance_public_ip') do set INSTANCE_IP=%%i
                 echo INSTANCE_IP=%INSTANCE_IP% >> instance_ip.txt
-                '''
+                        """
+                    }
+                }
             }
         }
-    }
-}
 
     stage('Deploy Docker Container on EC2') {
     steps {
