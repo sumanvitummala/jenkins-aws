@@ -116,7 +116,7 @@ pipeline {
     steps {
         echo "🚀 Deploying Docker container on EC2..."
         bat """
-        ssh -i C:/Users/Sumanvi/Downloads/sumanvi-key.pem ec2-user@13.203.66.99 ^
+        ssh -i "C:\Users\AppuSummi\Downloads\sumanvi-key.pem" ec2-user@13.203.66.99 ^
         "docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
         """
     }
