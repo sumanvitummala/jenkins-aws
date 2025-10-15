@@ -124,12 +124,14 @@ pipeline {
     steps {
         echo "🚀 Deploying Docker container on EC2..."
         bat """
-        ssh -i sumanvi-key.pem -o StrictHostKeyChecking=no ubuntu@13.203.66.99 ^
-        "docker pull ${FULL_ECR_NAME} && ^
-         docker stop ${CONTAINER_NAME} || true && ^
-         docker rm ${CONTAINER_NAME} || true && ^
-         docker run -d --name ${CONTAINER_NAME} -p ${CONTAINER_PORT}:80 ${FULL_ECR_NAME}"
-        """
+ssh -i "${EC2_KEY_PATH}" -o StrictHostKeyChecking=no ubuntu@${EC2_IP} ^
+"docker pull ${FULL_ECR_NAME} && \
+docker stop ${CONTAINER_NAME} || echo Container not running && \
+docker rm ${CONTAINER_NAME} || echo No container to remove && \
+docker run -d --name ${CONTAINER_NAME} -p ${CONTAINER_PORT}:80 ${FULL_ECR_NAME}"
+"""
+
+
     }
 }
 
