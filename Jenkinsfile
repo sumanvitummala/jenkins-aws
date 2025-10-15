@@ -141,7 +141,7 @@ stage('Terraform Apply') {
                 // Optional: restrict key permissions on Windows
                 bat """
                 powershell -Command "icacls '%EC2_KEY_PATH%' /inheritance:r"
-                powershell -Command "icacls '%EC2_KEY_PATH%' /grant:r '%USERNAME%:R'"
+                // powershell -Command "icacls '%EC2_KEY_PATH%' /grant:r '%USERNAME%:R'"
                 """
 
                 // Stop and remove existing container
