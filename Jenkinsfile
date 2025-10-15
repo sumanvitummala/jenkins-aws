@@ -11,7 +11,7 @@ pipeline {
         FULL_ECR_NAME = "${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
 
         // Terraform configuration
-        TERRAFORM_DIR = '.'   // since terraform.tf is in repo root
+        TERRAFORM_DIR = '.'   // terraform.tf is in repo root
     }
 
     stages {
@@ -53,7 +53,7 @@ pipeline {
             }
         }
 
-                stage('Terraform Init') {
+        stage('Terraform Init') {
             steps {
                 echo "⚙️ Initializing Terraform..."
                 dir("${TERRAFORM_DIR}") {
@@ -112,7 +112,7 @@ pipeline {
                 }
             }
         }
-
+    } // <-- closes stages
 
     post {
         success {
@@ -122,6 +122,7 @@ pipeline {
             echo "❌ Pipeline failed. Check the console output for errors."
         }
     }
-}
+} // <-- closes pipeline
+
 
 
