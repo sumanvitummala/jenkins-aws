@@ -123,13 +123,16 @@ pipeline {
         stage('Deploy Docker Container on EC2') {
     steps {
         echo "🚀 Deploying Docker container on EC2..."
-        bat """
-ssh -i "${EC2_KEY_PATH}" -o StrictHostKeyChecking=no ubuntu@${EC2_IP} ^
-"docker pull ${FULL_ECR_NAME} && \
-docker stop ${CONTAINER_NAME} || echo Container not running && \
-docker rm ${CONTAINER_NAME} || echo No container to remove && \
-docker run -d --name ${CONTAINER_NAME} -p ${CONTAINER_PORT}:80 ${FULL_ECR_NAME}"
-"""
+        withCredentials([file(credentialsId: 'EC2_KEY', variable: 'EC2_KEY_PATH')]) {
+    bat """
+    ssh -i "${EC2_KEY_PATH}" -o StrictHostKeyChecking=no ubuntu@${EC2_IP} ^
+    "docker pull ${FULL_ECR_NAME} && \
+    docker stop ${CONTAINER_NAME} || echo Container not running && \
+    docker rm ${CONTAINER_NAME} || echo No container to remove && \
+    docker run -d --name ${CONTAINER_NAME} -p ${CONTAINER_PORT}:80 ${FULL_ECR_NAME}"
+    """
+}
+
 
 
     }
