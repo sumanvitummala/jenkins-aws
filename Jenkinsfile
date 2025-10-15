@@ -117,7 +117,8 @@ stage('Terraform Apply') {
                         set PATH=%PATH%;C:/Terraform
                         terraform apply -auto-approve
                         for /f "delims=" %%i in ('terraform output -raw instance_public_ip') do set INSTANCE_IP=%%i
-                echo INSTANCE_IP=%INSTANCE_IP% >> instance_ip.txt
+                echo %INSTANCE_IP% > instance_ip.txt
+
                         """
                     }
                 }
