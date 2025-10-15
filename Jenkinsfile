@@ -132,7 +132,11 @@ stage('Terraform Apply') {
         def instanceIP = readFile('instance_ip.txt').trim()
         echo "✅ EC2 Instance IP: ${instanceIP}"
 
-        withCredentials([file(credentialsId: 'EC2_KEY_PATH', variable: 'SSH_KEY')]) {
+        withCredentials([sshUserPrivateKey(
+                credentialsId: 'ec2-key',
+                keyFileVariable: 'EC2_KEY_PATH',
+                usernameVariable: 'EC2_USER'
+            )]) {
             // Restrict key permissions on Windows
             bat """
             powershell -Command "icacls %SSH_KEY% /inheritance:r"
