@@ -133,7 +133,7 @@ pipeline {
             def instance_ip = bat(script: 'terraform output -raw instance_public_ip', returnStdout: true).trim()
 
             // Path to your private key (use double backslashes in Windows paths)
-            def keyPath = ""C:\Users\AppuSummi\Downloads\sumanvi-key.pem""
+            def keyPath = "C:/Users/AppuSummi/Downloads/sumanvi-key.pem"
 
             // Run Docker container on EC2 via SSH
             bat """
