@@ -129,14 +129,18 @@ pipeline {
     stage('Deploy Docker Container on EC2') {
     steps {
         script {
-            def instance_ip = bat(script: 'terraform output -raw instance_public_ip', returnStdout: true).trim()
-            bat """
-            ssh -o StrictHostKeyChecking=no ec2-user@${instance_ip} ^
-            "docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
-            """
+            // Make sure Terraform path is included
+            withEnv(['PATH=C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64;%PATH%']) {
+                def instance_ip = bat(script: 'terraform output -raw instance_public_ip', returnStdout: true).trim()
+                bat """
+                ssh -o StrictHostKeyChecking=no ec2-user@${instance_ip} ^
+                "docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
+                """
+            }
         }
     }
 }
+
 
 
 
