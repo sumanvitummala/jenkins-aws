@@ -64,7 +64,7 @@ pipeline {
                         bat """
                         set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
                         set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
+                        set PATH=%PATH%;C:/Terraform
 
                         terraform init
                         """
@@ -84,7 +84,7 @@ pipeline {
                         bat """
                         set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
                         set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
+                        set PATH=%PATH%;C:/Terraform
                         terraform plan
                         """
                     }
@@ -106,7 +106,7 @@ pipeline {
                         bat """
                         set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
                         set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
+                        set PATH=%PATH%;C:/Terraform
                         terraform apply -auto-approve
                         """
                     }
