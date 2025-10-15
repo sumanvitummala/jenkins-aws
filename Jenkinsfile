@@ -112,6 +112,24 @@ pipeline {
                 }
             }
         }
+        stage('Deploy Docker Container on EC2') {
+    steps {
+        script {
+            echo "🚀 Deploying Docker container on EC2..."
+            
+            // Get EC2 IP from Terraform output
+            def ec2_ip = sh(returnStdout: true, script: 'terraform output -raw instance_public_ip').trim()
+
+            // SSH and run Docker container
+            sh """
+            ssh -o StrictHostKeyChecking=no -i C:/path/to/sumanvi-key.pem ec2-user@${ec2_ip} \\
+            "docker pull 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0 && \\
+            docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
+            """
+        }
+    }
+}
+
     } // <-- closes stages
 
     post {
