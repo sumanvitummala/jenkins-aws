@@ -98,7 +98,7 @@ pipeline {
             }
         }
 
-        sstage('Terraform Apply') {
+        stage('Terraform Apply') {
     steps {
         echo "🚀 Applying Terraform Configuration..."
         dir('.') {
