@@ -126,6 +126,7 @@ stage('Terraform Apply') {
         }
 
     stage('Deploy Docker Container on EC2') {
+        steps{
     echo "🚀 Deploying Docker container on EC2..."
     script {
         def instanceIP = readFile('instance_ip.txt').trim()
@@ -146,6 +147,7 @@ stage('Terraform Apply') {
         }
     }
 }
+    }
 
 
 
