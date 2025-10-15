@@ -115,10 +115,16 @@ pipeline {
         stage('Get Terraform Output') {
     steps {
         script {
-            instance_ip = bat(script: "terraform output -raw instance_public_ip", returnStdout: true).trim()
+            withEnv([
+                'PATH=C:\\Program Files\\Amazon\\AWSCLIV2\\;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64;' + 
+                System.getenv('PATH')
+            ]) {
+                bat 'terraform output -raw instance_public_ip'
+            }
         }
     }
 }
+
 
     stage('Deploy Docker Container on EC2') {
     steps {
