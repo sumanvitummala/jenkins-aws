@@ -53,101 +53,91 @@ pipeline {
             }
         }
 
-        stage('Terraform Init') {
-            steps {
-                echo "⚙️ Initializing Terraform..."
-                dir("${TERRAFORM_DIR}") {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        bat """
-                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
-                        terraform init
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Terraform Plan') {
-            steps {
-                echo "🧩 Running Terraform Plan..."
-                dir("${TERRAFORM_DIR}") {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        bat """
-                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
-                        terraform plan
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Terraform Apply') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
-            steps {
-                echo "🚀 Applying Terraform Configuration..."
-                dir("${TERRAFORM_DIR}") {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        bat """
-                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
-                        terraform apply -auto-approve
-                        """
-                    }
-                }
-            }
-        }
-        stage('Get Terraform Output') {
+       stage('Terraform Init') {
     steps {
-        script {
-            withEnv([
-                'PATH=C:\\Program Files\\Amazon\\AWSCLIV2\\;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64;' + 
-                System.getenv('PATH')
+        echo "⚙️ Initializing Terraform..."
+        dir("${TERRAFORM_DIR}") {
+            withCredentials([
+                string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
             ]) {
-                bat 'terraform output -raw instance_public_ip'
+                def terraformExe = "C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64\\terraform.exe"
+                bat """
+                set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                \"${terraformExe}\" init
+                """
             }
         }
     }
 }
 
+stage('Terraform Plan') {
+    steps {
+        echo "🧩 Running Terraform Plan..."
+        dir("${TERRAFORM_DIR}") {
+            withCredentials([
+                string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+            ]) {
+                def terraformExe = "C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64\\terraform.exe"
+                bat """
+                set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                \"${terraformExe}\" plan
+                """
+            }
+        }
+    }
+}
 
-    stage('Deploy Docker Container on EC2') {
+stage('Terraform Apply') {
+    when {
+        expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+    }
+    steps {
+        echo "🚀 Applying Terraform Configuration..."
+        dir("${TERRAFORM_DIR}") {
+            withCredentials([
+                string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+            ]) {
+                def terraformExe = "C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64\\terraform.exe"
+                bat """
+                set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                \"${terraformExe}\" apply -auto-approve
+                """
+            }
+        }
+    }
+}
+
+stage('Deploy Docker Container on EC2') {
     steps {
         script {
-            // Full path to terraform.exe
             def terraformExe = 'C:/Users/AppuSummi/Downloads/terraform_1.13.3_windows_amd64/terraform.exe'
-
-            // Get EC2 public IP from Terraform
+            
+            // Get EC2 public IP cleanly
             def instance_ip = bat(
                 script: "\"${terraformExe}\" output -raw instance_public_ip",
                 returnStdout: true
-            ).trim()
-
+            ).trim().replace("\r","")   // remove Windows CR
+            
             echo "EC2 Public IP: ${instance_ip}"
 
             // Path to your private key
             def keyPath = "C:/Users/AppuSummi/Downloads/sumanvi-key.pem"
 
             // Run Docker container on EC2 via SSH
-            bat "ssh -i \"${keyPath}\" -o StrictHostKeyChecking=no ec2-user@${instance_ip} \"docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0\""
+            bat """
+            ssh -i \"${keyPath}\" -o StrictHostKeyChecking=no ec2-user@${instance_ip} \\
+            \"docker run -d -p 80:80 ${FULL_ECR_NAME}\"
+            """
         }
     }
 }
+
 
 
 
