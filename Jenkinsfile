@@ -54,19 +54,27 @@ pipeline {
         }
 
         stage('Terraform Init') {
-            steps {
-                echo "⚙️ Initializing Terraform..."
-                dir("${TERRAFORM_DIR}") {
-                    bat 'terraform init'
-                }
-            }
+    steps {
+        echo "⚙️ Initializing Terraform..."
+        dir("${TERRAFORM_DIR}") {
+            bat '''
+            set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
+            terraform init
+            '''
         }
+    }
+}
+
 
         stage('Terraform Plan') {
             steps {
                 echo "🧩 Running Terraform Plan..."
                 dir("${TERRAFORM_DIR}") {
-                    bat 'terraform plan'
+                    bat '''
+set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
+terraform plan
+'''
+
                 }
             }
         }
@@ -75,7 +83,11 @@ pipeline {
             steps {
                 echo "🚀 Applying Terraform Configuration..."
                 dir("${TERRAFORM_DIR}") {
-                    bat 'terraform apply -auto-approve'
+                    bat '''
+set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
+terraform apply -auto-approve
+'''
+
                 }
             }
         }
