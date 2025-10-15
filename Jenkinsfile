@@ -2,46 +2,38 @@ pipeline {
     agent any
 
     environment {
-        // AWS & ECR configuration
         AWS_REGION = 'ap-south-1'
-        ECR_ACCOUNT_ID = '987686461903'
-        ECR_REPO = 'docker-image'
-        IMAGE_TAG = '1.0'
-        IMAGE_NAME = "${ECR_REPO}:${IMAGE_TAG}"
-        FULL_ECR_NAME = "${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
-
-        // Terraform configuration
-        TERRAFORM_DIR = '.'   // terraform.tf is in repo root
+        ECR_REPO = '987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0'
+        EC2_PUBLIC_IP = 'YOUR_EC2_PUBLIC_IP' // Replace with your EC2 public IP
+        EC2_USER = 'ec2-user' // or ubuntu, depending on your AMI
+        SSH_KEY = credentials('jenkins-ec2-key') // Jenkins SSH private key credential ID
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                git 'https://github.com/sumanvitummala/jenkins-aws.git'
+            }
+        }
 
         stage('Build Docker Image') {
             steps {
                 echo "🐳 Building Docker image..."
-                bat "docker build -t ${IMAGE_NAME} ."
+                bat 'docker build -t docker-image:1.0 .'
             }
         }
 
         stage('Tag Docker Image for ECR') {
             steps {
                 echo "🏷️ Tagging Docker image for ECR..."
-                bat "docker tag ${IMAGE_NAME} ${FULL_ECR_NAME}"
+                bat "docker tag docker-image:1.0 ${ECR_REPO}"
             }
         }
 
         stage('Login to AWS ECR') {
             steps {
-                echo "🔑 Logging in to AWS ECR..."
-                withCredentials([
-                    string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
-                    bat """
-                    set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                    set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                    aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-                    """
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins']]) {
+                    bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO.split(':')[0]}"
                 }
             }
         }
@@ -49,80 +41,36 @@ pipeline {
         stage('Push Docker Image to ECR') {
             steps {
                 echo "📦 Pushing Docker image to AWS ECR..."
-                bat "docker push ${FULL_ECR_NAME}"
-            }
-        }
-
-        stage('Terraform Init') {
-            steps {
-                echo "⚙️ Initializing Terraform..."
-                dir("${TERRAFORM_DIR}") {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        bat """
-                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:/Terraform
-
-                        terraform init
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Terraform Plan') {
-            steps {
-                echo "🧩 Running Terraform Plan..."
-                dir("${TERRAFORM_DIR}") {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        bat """
-                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:/Terraform
-                        terraform plan
-                        """
-                    }
-                }
+                bat "docker push ${ECR_REPO}"
             }
         }
 
         stage('Terraform Apply') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
             steps {
-                echo "🚀 Applying Terraform Configuration..."
-                dir("${TERRAFORM_DIR}") {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        bat """
-                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:/Terraform
-                        terraform apply -auto-approve
-                        """
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins']]) {
+                    dir('.') {
+                        bat 'terraform init'
+                        bat 'terraform apply -auto-approve'
                     }
                 }
             }
         }
-    } // <-- closes stages
 
-    post {
-        success {
-            echo "✅ Pipeline completed successfully!"
-        }
-        failure {
-            echo "❌ Pipeline failed. Check the console output for errors."
+        stage('Run Docker Container on EC2') {
+            steps {
+                echo "🚀 Running Docker container on EC2..."
+                // Using SSH to run Docker commands on EC2
+                sh """
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} ${EC2_USER}@${EC2_PUBLIC_IP} \\
+                "docker pull ${ECR_REPO} && \\
+                 docker stop my-container || true && \\
+                 docker rm my-container || true && \\
+                 docker run -d --name my-container -p 80:80 ${ECR_REPO}"
+                """
+            }
         }
     }
-} // <-- closes pipeline
+}
+
 
 
