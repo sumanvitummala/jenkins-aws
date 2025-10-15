@@ -120,23 +120,26 @@ pipeline {
             }
         }
 
-        stage('Deploy Docker Container on EC2') {
-    echo "🚀 Deploying Docker container on EC2..."
-    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-key', 
-                                       keyFileVariable: 'EC2_KEY_PATH', 
-                                       usernameVariable: 'EC2_USER')]) {
-        bat """
-        REM Add EC2 host to known_hosts to avoid prompt
-        ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "echo 'Connected to EC2'"
+    stage('Deploy Docker Container on EC2') {
+    steps {
+        echo "🚀 Deploying Docker container on EC2..."
+        withCredentials([sshUserPrivateKey(credentialsId: 'ec2-key', 
+                                           keyFileVariable: 'EC2_KEY_PATH', 
+                                           usernameVariable: 'EC2_USER')]) {
+            bat """
+            REM Add EC2 host to known_hosts to avoid prompt
+            ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "echo 'Connected to EC2'"
 
-        REM Stop any existing container with the same name
-        ssh -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "docker stop my-container || true && docker rm my-container || true"
+            REM Stop any existing container with the same name
+            ssh -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "docker stop my-container || true && docker rm my-container || true"
 
-        REM Run the new Docker container
-        ssh -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
-        """
+            REM Run the new Docker container
+            ssh -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
+            """
+        }
     }
 }
+
 
 
     }
