@@ -9,28 +9,30 @@ pipeline {
         IMAGE_TAG = '1.0'
         IMAGE_NAME = "${ECR_REPO}:${IMAGE_TAG}"
         FULL_ECR_NAME = "${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
+
+        // Terraform configuration
+        TERRAFORM_DIR = '.'   // since terraform.tf is in repo root
     }
 
     stages {
 
         stage('Build Docker Image') {
             steps {
-                echo "Building Docker image..."
+                echo "🐳 Building Docker image..."
                 bat "docker build -t ${IMAGE_NAME} ."
             }
         }
 
         stage('Tag Docker Image for ECR') {
             steps {
-                echo "Tagging Docker image for ECR..."
+                echo "🏷️ Tagging Docker image for ECR..."
                 bat "docker tag ${IMAGE_NAME} ${FULL_ECR_NAME}"
             }
         }
 
         stage('Login to AWS ECR') {
             steps {
-                echo "Logging in to AWS ECR..."
-                // Use Jenkins credentials (IAM user keys)
+                echo "🔑 Logging in to AWS ECR..."
                 withCredentials([
                     string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
                     string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
@@ -46,20 +48,47 @@ pipeline {
 
         stage('Push Docker Image to ECR') {
             steps {
-                echo "Pushing Docker image to AWS ECR..."
+                echo "📦 Pushing Docker image to AWS ECR..."
                 bat "docker push ${FULL_ECR_NAME}"
             }
         }
 
+        stage('Terraform Init') {
+            steps {
+                echo "⚙️ Initializing Terraform..."
+                dir("${TERRAFORM_DIR}") {
+                    bat 'terraform init'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                echo "🧩 Running Terraform Plan..."
+                dir("${TERRAFORM_DIR}") {
+                    bat 'terraform plan'
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                echo "🚀 Applying Terraform Configuration..."
+                dir("${TERRAFORM_DIR}") {
+                    bat 'terraform apply -auto-approve'
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo "✅ Docker image successfully pushed to AWS ECR: ${FULL_ECR_NAME}"
+            echo "✅ Pipeline completed successfully!"
         }
         failure {
-            echo "❌ Build failed. Check the console output for errors."
+            echo "❌ Pipeline failed. Check the console output for errors."
         }
     }
 }
+
 
