@@ -5,7 +5,7 @@ provider "aws" {
 
 # Step 2: Create a security group for EC2
 resource "aws_security_group" "web_sg" {
-  name        = "web-sg-new"
+  name        = "web-sg-new-2"
   description = "Allow SSH and HTTP"
 
   ingress {
