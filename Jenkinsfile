@@ -129,19 +129,21 @@ pipeline {
     stage('Deploy Docker Container on EC2') {
     steps {
         script {
-            // Get EC2 public IP from Terraform
-            def instance_ip = bat(script: 'terraform output -raw instance_public_ip', returnStdout: true).trim()
+            // Get EC2 public IP from Terraform (use full path to terraform.exe)
+            def instance_ip = bat(
+                script: '"C:/Users/AppuSummi/Downloads/terraform_1.13.3_windows_amd64/terraform.exe" output -raw instance_public_ip',
+                returnStdout: true
+            ).trim()
 
-            // Path to your private key (use double backslashes in Windows paths)
+            // Path to your private key
             def keyPath = "C:/Users/AppuSummi/Downloads/sumanvi-key.pem"
 
             // Run Docker container on EC2 via SSH
-            bat """
-            ssh -i ${keyPath} -o StrictHostKeyChecking=no ec2-user@${instance_ip} "docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
-            """
+            bat "ssh -i ${keyPath} -o StrictHostKeyChecking=no ec2-user@${instance_ip} \"docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0\""
         }
     }
 }
+
 
 
 
