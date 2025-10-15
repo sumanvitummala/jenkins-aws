@@ -32,6 +32,11 @@ resource "aws_security_group" "web_sg" {
   tags = {
     Name = "WebSecurityGroup"
   }
+
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Step 3: Create an EC2 instance
