@@ -123,7 +123,7 @@ pipeline {
         stage('Deploy Docker Container on EC2') {
     steps {
         echo "🚀 Deploying Docker container on EC2..."
-        withCredentials([file(credentialsId: 'EC2_KEY', variable: 'EC2_KEY_PATH')]) {
+        withCredentials([file(credentialsId: 'ec2-key', variable: 'EC2_KEY_PATH')]) {
     bat """
     ssh -i "${EC2_KEY_PATH}" -o StrictHostKeyChecking=no ubuntu@${EC2_IP} ^
     "docker pull ${FULL_ECR_NAME} && \
