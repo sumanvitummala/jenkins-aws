@@ -98,44 +98,43 @@ pipeline {
             }
         }
 
-        stage('Terraform Apply') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
-            steps {
-                echo "🚀 Applying Terraform Configuration..."
-                dir("${TERRAFORM_DIR}") {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        bat """
-                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:/Terraform
-                        terraform apply -auto-approve
-                        """
-                    }
-                }
+        sstage('Terraform Apply') {
+    steps {
+        echo "🚀 Applying Terraform Configuration..."
+        dir('.') {
+            withCredentials([[
+                $class: 'AmazonWebServicesCredentialsBinding', 
+                credentialsId: 'aws-credentials'
+            ]]) {
+                bat '''
+                set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                terraform apply -auto-approve
+                for /f "delims=" %%i in ('terraform output -raw instance_public_ip') do set INSTANCE_IP=%%i
+                echo INSTANCE_IP=%INSTANCE_IP% >> instance_ip.txt
+                '''
             }
         }
+    }
+}
 
     stage('Deploy Docker Container on EC2') {
     steps {
         echo "🚀 Deploying Docker container on EC2..."
-        withCredentials([sshUserPrivateKey(credentialsId: 'ec2-key', 
-                                           keyFileVariable: 'EC2_KEY_PATH', 
-                                           usernameVariable: 'EC2_USER')]) {
-            bat """
-            REM Add EC2 host to known_hosts to avoid prompt
-            ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "echo 'Connected to EC2'"
+        script {
+            def INSTANCE_IP = readFile('instance_ip.txt').trim()
+            echo "✅ EC2 Instance IP: ${INSTANCE_IP}"
 
-            REM Stop any existing container with the same name
-            ssh -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "docker stop my-container || true && docker rm my-container || true"
-
-            REM Run the new Docker container
-            ssh -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
-            """
+            withCredentials([sshUserPrivateKey(
+                credentialsId: 'ec2-key',
+                keyFileVariable: 'EC2_KEY_PATH',
+                usernameVariable: 'EC2_USER'
+            )]) {
+                bat """
+                ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "docker stop my-container || true && docker rm my-container || true"
+                ssh -i "%EC2_KEY_PATH%" %EC2_USER%@${INSTANCE_IP} "docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
+                """
+            }
         }
     }
 }
