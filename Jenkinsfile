@@ -121,19 +121,17 @@ pipeline {
         }
 
         stage('Deploy Docker Container on EC2') {
-            steps {
-                echo "🚀 Deploying Docker container on EC2..."
-                sshagent(credentials: ["${SSH_KEY_CREDENTIALS}"]) {
-                    bat """
-                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} ^
-                    "docker pull ${FULL_ECR_NAME} && ^
-                     docker stop ${CONTAINER_NAME} || true && ^
-                     docker rm ${CONTAINER_NAME} || true && ^
-                     docker run -d --name ${CONTAINER_NAME} -p ${CONTAINER_PORT}:80 ${FULL_ECR_NAME}"
-                    """
-                }
-            }
-        }
+    steps {
+        echo "🚀 Deploying Docker container on EC2..."
+        bat """
+        ssh -i sumanvi-key.pem -o StrictHostKeyChecking=no ubuntu@13.203.66.99 ^
+        "docker pull ${FULL_ECR_NAME} && ^
+         docker stop ${CONTAINER_NAME} || true && ^
+         docker rm ${CONTAINER_NAME} || true && ^
+         docker run -d --name ${CONTAINER_NAME} -p ${CONTAINER_PORT}:80 ${FULL_ECR_NAME}"
+        """
+    }
+}
 
     }
 
