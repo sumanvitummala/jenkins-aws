@@ -11,7 +11,7 @@ pipeline {
         FULL_ECR_NAME = "${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
 
         // Terraform configuration
-        TERRAFORM_DIR = '.'   // since terraform.tf is in repo root
+        TERRAFORM_DIR = '.'   // terraform.tf is in repo root
     }
 
     stages {
@@ -57,7 +57,17 @@ pipeline {
             steps {
                 echo "⚙️ Initializing Terraform..."
                 dir("${TERRAFORM_DIR}") {
-                    bat 'terraform init'
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        bat """
+                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                        set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
+                        terraform init
+                        """
+                    }
                 }
             }
         }
@@ -66,20 +76,43 @@ pipeline {
             steps {
                 echo "🧩 Running Terraform Plan..."
                 dir("${TERRAFORM_DIR}") {
-                    bat 'terraform plan'
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        bat """
+                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                        set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
+                        terraform plan
+                        """
+                    }
                 }
             }
         }
 
         stage('Terraform Apply') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
             steps {
                 echo "🚀 Applying Terraform Configuration..."
                 dir("${TERRAFORM_DIR}") {
-                    bat 'terraform apply -auto-approve'
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        bat """
+                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                        set PATH=%PATH%;C:\\Users\\AppuSummi\\Downloads\\terraform_1.13.3_windows_amd64
+                        terraform apply -auto-approve
+                        """
+                    }
                 }
             }
         }
-    }
+    } // <-- closes stages
 
     post {
         success {
@@ -89,5 +122,6 @@ pipeline {
             echo "❌ Pipeline failed. Check the console output for errors."
         }
     }
-}
+} // <-- closes pipeline
+
 
