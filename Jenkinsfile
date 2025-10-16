@@ -14,7 +14,7 @@ pipeline {
         TERRAFORM_DIR = '.'   // terraform.tf is in repo root
 
         // EC2 configuration
-        EC2_USER = 'ubuntu'  // make sure this is correct for your AMI
+        EC2_USER = 'ec2-user'  // make sure this is correct for your AMI
         SSH_KEY_CREDENTIALS = 'ec2-key' // Jenkins SSH key credential ID
         CONTAINER_NAME = 'web-container'
         CONTAINER_PORT = '80'
@@ -87,28 +87,28 @@ pipeline {
         }
 
         stage('Deploy Docker Container on EC2') {
-            steps {
-                echo "🚀 Deploying Docker container on EC2..."
-                script {
-                    // Read instance IP
-                    def instanceIp = readFile('instance_ip.txt').trim()
-                    echo "✅ Using EC2 Instance IP: ${instanceIp}"
+    steps {
+        echo "🚀 Deploying Docker container on EC2..."
+        script {
+            // Read the instance IP from the file
+            def instanceIp = readFile('instance_ip.txt').trim()
+            echo "✅ EC2 Instance IP: ${instanceIp}"
 
-                    // SSH into EC2 and deploy Docker container
-                    // Using Jenkins SSH Agent credential
-                    withCredentials([sshUserPrivateKey(credentialsId: "${SSH_KEY_CREDENTIALS}", keyFileVariable: 'KEY_FILE')]) {
-                        bat """
-                        ssh -o StrictHostKeyChecking=no -i "%KEY_FILE%" ${EC2_USER}@${instanceIp} ^
-                        "echo '🔹 Checking Docker...' && \
-                        if ! command -v docker >/dev/null 2>&1; then \
-                            sudo apt-get update && sudo apt-get install -y docker.io && sudo systemctl start docker && sudo usermod -aG docker ${EC2_USER}; \
-                        fi && \
-                        sudo docker run -d -p ${CONTAINER_PORT}:80 ${FULL_ECR_NAME}"
-                        """
-                    }
-                }
-            }
+            // SSH into EC2 and deploy Docker container
+            bat """
+ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instanceIp} ^
+"echo '🔹 Checking Docker installation...' && ^
+if ! command -v docker >/dev/null 2>&1; then ^
+    sudo yum install -y docker && ^
+    sudo systemctl start docker && ^
+    sudo usermod -aG docker ec2-user; ^
+fi && ^
+docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
+"""
         }
+    }
+}
+
     }
 
     post {
