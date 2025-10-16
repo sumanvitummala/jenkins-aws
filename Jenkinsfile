@@ -60,31 +60,28 @@ pipeline {
         }
 
         stage('Terraform Apply') {
-            steps {
-                echo "🚀 Applying Terraform Configuration..."
-                dir("${TERRAFORM_DIR}") {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        script {
-                            bat """
-                            set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                            set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                            set PATH=%PATH%;C:/Terraform
-                            terraform init
-                            terraform apply -auto-approve
-                            """
-                            // Read EC2 instance IP from Terraform output directly in Groovy
-                            def instanceIp = bat(script: 'terraform output -raw instance_public_ip', returnStdout: true).trim()
-                            echo "✅ EC2 Instance IP: ${instanceIp}"
-                            // Save to file for next stage if needed
-                            writeFile file: 'instance_ip.txt', text: instanceIp
-                        }
-                    }
-                }
+    when {
+        expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+    }
+    steps {
+        echo "🚀 Applying Terraform Configuration..."
+        dir("${TERRAFORM_DIR}") {
+            withCredentials([
+                string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+            ]) {
+                bat """
+                set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                set PATH=%PATH%;C:/Terraform
+                terraform apply -auto-approve
+                terraform output -raw instance_public_ip > instance_ip.txt
+                """
             }
         }
+    }
+}
+
 
         stage('Deploy Docker Container on EC2') {
     steps {
