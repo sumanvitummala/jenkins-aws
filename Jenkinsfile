@@ -126,6 +126,7 @@ stage('Terraform Apply') {
         }
 
     stage('Deploy Docker Container on EC2') {
+        steps{
     echo "🚀 Deploying Docker container on EC2..."
     script {
         // Read the EC2 instance IP
@@ -165,7 +166,7 @@ stage('Terraform Apply') {
 }
 
 
-
+    }
 
 
 
