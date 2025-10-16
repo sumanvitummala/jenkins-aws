@@ -134,23 +134,10 @@ stage('Terraform Apply') {
 
         // SSH into EC2 and deploy Docker container
         bat """
-        ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instance_ip} ^
-        "echo '🔹 Checking Docker installation...' && ^
-        if ! command -v docker &> /dev/null; then ^
-            sudo amazon-linux-extras enable docker && ^
-            sudo dnf install docker -y && ^
-            sudo systemctl enable docker && ^
-            sudo systemctl start docker && ^
-            sudo usermod -aG docker ec2-user; ^
-        fi && ^
-        echo '🔹 Logging into AWS ECR...' && ^
-        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com && ^
-        echo '🔹 Stopping & removing existing container...' && ^
-        docker stop my-container || true && ^
-        docker rm my-container || true && ^
-        echo '🔹 Running Docker container...' && ^
-        docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
-        """
+ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${INSTANCE_IP} ^
+"echo '🔹 Checking Docker installation...' && if ! command -v docker >/dev/null 2>&1; then sudo yum install -y docker; sudo systemctl start docker; sudo usermod -aG docker ec2-user; fi && docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
+"""
+
     }
 }
 
