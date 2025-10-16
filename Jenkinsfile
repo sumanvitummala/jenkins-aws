@@ -129,8 +129,8 @@ stage('Terraform Apply') {
         steps{
     echo "🚀 Deploying Docker container on EC2..."
     script {
-        def instance_ip = readFile('instance_ip.txt').trim()
-        echo "✅ EC2 Instance IP: ${instance_ip}"
+        def instanceIp = readFile('instance_ip.txt').trim()
+        echo "✅ EC2 Instance IP: ${instanceIp}"
 
         // SSH into EC2 and deploy Docker container
         bat """
