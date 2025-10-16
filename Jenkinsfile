@@ -139,13 +139,13 @@ stage('Terraform Apply') {
             )]) {
                 // Stop and remove existing container
                 bat """
-                ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" ubuntu@${instanceIP} ^
+                ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" ec2-user@${instanceIP} ^
                 "docker stop my-container || true && docker rm my-container || true"
                 """
 
                 // Run the new container from ECR
                 bat """
-                ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" ubuntu@${instanceIP} ^
+                ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" ec2-user@${instanceIP} ^
                 "docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
                 """
             }
