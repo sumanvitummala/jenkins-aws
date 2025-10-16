@@ -90,20 +90,37 @@ pipeline {
             def instanceIp = readFile('instance_ip.txt').trim()
             echo "✅ EC2 Instance IP: ${instanceIp}"
 
-            // Run SSH command in a single line suitable for Windows bat
-            bat """
-            ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instanceIp} " 
-                if ! docker --version >/dev/null 2>&1; then 
-                    sudo yum install -y docker; 
-                    sudo systemctl start docker; 
-                    sudo usermod -aG docker ec2-user; 
-                fi; 
-                docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0
-            "
+            powershell """
+            echo '🔹 Connecting to EC2 instance...'
+            ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instanceIp} '
+                echo "✅ Connected to EC2"
+                
+                # Install Docker if not installed
+                if ! command -v docker >/dev/null 2>&1; then
+                    echo "Installing Docker..."
+                    sudo yum install -y docker
+                    sudo systemctl start docker
+                    sudo systemctl enable docker
+                    sudo usermod -aG docker ec2-user
+                fi
+
+                # Pull and run the latest image
+                echo "🛠 Pulling image from ECR..."
+                aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com
+
+                docker stop web-container || true
+                docker rm web-container || true
+
+                docker run -d --name web-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0
+
+                echo "🚀 Container started successfully!"
+            '
             """
         }
     }
 }
+
+
 
 
     }
