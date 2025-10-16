@@ -126,29 +126,44 @@ stage('Terraform Apply') {
         }
 
     stage('Deploy Docker Container on EC2') {
-    steps {
-        echo "🚀 Deploying Docker container on EC2..."
-        script {
-            def instanceIP = readFile('instance_ip.txt').trim()
-            echo "✅ EC2 Instance IP: ${instanceIP}"
+    echo "🚀 Deploying Docker container on EC2..."
+    script {
+        // Read the EC2 instance IP
+        def instance_ip = readFile('instance_ip.txt').trim()
+        echo "✅ EC2 Instance IP: ${instance_ip}"
 
-            // Path to the permanent .pem key
-            def pemPath = "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem"
+        // SSH into EC2 and deploy Docker container
+        bat """
+        ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instance_ip} "
+            #!/bin/bash
+            set -e
 
-            // Stop and remove existing container
-            bat """
-            ssh -o StrictHostKeyChecking=no -i "${pemPath}" ec2-user@${instanceIP} ^
-            "docker stop my-container || true && docker rm my-container || true"
-            """
+            echo '🔹 Checking Docker installation...'
+            if ! command -v docker &> /dev/null; then
+                echo 'Docker not found. Installing Docker...'
+                sudo amazon-linux-extras enable docker
+                sudo yum install docker -y
+                sudo systemctl enable docker
+                sudo systemctl start docker
+                sudo usermod -aG docker ec2-user
+            else
+                echo 'Docker already installed.'
+            fi
 
-            // Run the new container from ECR
-            bat """
-            ssh -o StrictHostKeyChecking=no -i "${pemPath}" ec2-user@${instanceIP} ^
-            "docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
-            """
-        }
+            echo '🔹 Logging into AWS ECR...'
+            aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com
+
+            echo '🔹 Stopping & removing any existing container...'
+            docker stop my-container || true
+            docker rm my-container || true
+
+            echo '🔹 Running Docker container...'
+            docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0
+        "
+        """
     }
 }
+
 
 
 
