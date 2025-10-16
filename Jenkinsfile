@@ -133,22 +133,21 @@ stage('Terraform Apply') {
             echo "✅ EC2 Instance IP: ${instanceIP}"
 
             withCredentials([sshUserPrivateKey(
-                    credentialsId: 'ec2-key',
-                    keyFileVariable: 'EC2_KEY_PATH',
-                    usernameVariable: 'EC2_USER'
-                )]) {
-
-                // Optional: restrict key permissions on Windows
+                credentialsId: 'ec2-key',
+                keyFileVariable: 'EC2_KEY_PATH',
+                usernameVariable: 'EC2_USER'
+            )]) {
+                // Stop and remove existing container
                 bat """
-                powershell -Command "icacls '%EC2_KEY_PATH%' /inheritance:r"
-                
+                ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" ubuntu@${instanceIP} ^
+                "docker stop my-container || true && docker rm my-container || true"
                 """
 
-                // Stop and remove existing container
-                bat "ssh -o StrictHostKeyChecking=no -i \"%EC2_KEY_PATH%\" %EC2_USER%@${instanceIP} \"docker stop my-container || true && docker rm my-container || true\""
-
-                // Run the new container
-                bat "ssh -i \"%EC2_KEY_PATH%\" %EC2_USER%@${instanceIP} \"docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0\""
+                // Run the new container from ECR
+                bat """
+                ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" ubuntu@${instanceIP} ^
+                "docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
+                """
             }
         }
     }
