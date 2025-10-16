@@ -14,8 +14,7 @@ pipeline {
         TERRAFORM_DIR = '.'   // terraform.tf is in repo root
 
         // EC2 configuration
-        EC2_USER = 'ubuntu'
-        EC2_HOST = '13.203.66.99'
+        EC2_USER = 'ubuntu'  // make sure this is correct for your AMI
         SSH_KEY_CREDENTIALS = 'ec2-key' // Jenkins SSH key credential ID
         CONTAINER_NAME = 'web-container'
         CONTAINER_PORT = '80'
@@ -60,50 +59,7 @@ pipeline {
             }
         }
 
-        stage('Terraform Init') {
-            steps {
-                echo "⚙ Initializing Terraform..."
-                dir("${TERRAFORM_DIR}") {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        bat """
-                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:/Terraform
-                        terraform init
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Terraform Plan') {
-            steps {
-                echo "🧩 Running Terraform Plan..."
-                dir("${TERRAFORM_DIR}") {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        bat """
-                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:/Terraform
-                        terraform plan
-                        """
-                    }
-                }
-            }
-        }
-
-        
-    
-stage('Terraform Apply') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
+        stage('Terraform Apply') {
             steps {
                 echo "🚀 Applying Terraform Configuration..."
                 dir("${TERRAFORM_DIR}") {
@@ -111,40 +67,48 @@ stage('Terraform Apply') {
                         string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
                         string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
                     ]) {
-                        bat """
-                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
-                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
-                        set PATH=%PATH%;C:/Terraform
-                        terraform apply -auto-approve
-                        for /f "delims=" %%i in ('terraform output -raw instance_public_ip') do set INSTANCE_IP=%%i
-                echo %INSTANCE_IP% > instance_ip.txt
-
-                        """
+                        script {
+                            bat """
+                            set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                            set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                            set PATH=%PATH%;C:/Terraform
+                            terraform init
+                            terraform apply -auto-approve
+                            """
+                            // Read EC2 instance IP from Terraform output directly in Groovy
+                            def instanceIp = bat(script: 'terraform output -raw instance_public_ip', returnStdout: true).trim()
+                            echo "✅ EC2 Instance IP: ${instanceIp}"
+                            // Save to file for next stage if needed
+                            writeFile file: 'instance_ip.txt', text: instanceIp
+                        }
                     }
                 }
             }
         }
 
-    stage('Deploy Docker Container on EC2') {
-        steps{
-    echo "🚀 Deploying Docker container on EC2..."
-    script {
-        def instanceIp = readFile('instance_ip.txt').trim()
-        echo "✅ EC2 Instance IP: ${instanceIp}"
+        stage('Deploy Docker Container on EC2') {
+            steps {
+                echo "🚀 Deploying Docker container on EC2..."
+                script {
+                    // Read instance IP
+                    def instanceIp = readFile('instance_ip.txt').trim()
+                    echo "✅ Using EC2 Instance IP: ${instanceIp}"
 
-        // SSH into EC2 and deploy Docker container
-        bat """
-ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${INSTANCE_IP} ^
-"echo '🔹 Checking Docker installation...' && if ! command -v docker >/dev/null 2>&1; then sudo yum install -y docker; sudo systemctl start docker; sudo usermod -aG docker ec2-user; fi && docker run -d -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
-"""
-
-    }
-}
-
-
-
-    }
-
+                    // SSH into EC2 and deploy Docker container
+                    // Using Jenkins SSH Agent credential
+                    withCredentials([sshUserPrivateKey(credentialsId: "${SSH_KEY_CREDENTIALS}", keyFileVariable: 'KEY_FILE')]) {
+                        bat """
+                        ssh -o StrictHostKeyChecking=no -i "%KEY_FILE%" ${EC2_USER}@${instanceIp} ^
+                        "echo '🔹 Checking Docker...' && \
+                        if ! command -v docker >/dev/null 2>&1; then \
+                            sudo apt-get update && sudo apt-get install -y docker.io && sudo systemctl start docker && sudo usermod -aG docker ${EC2_USER}; \
+                        fi && \
+                        sudo docker run -d -p ${CONTAINER_PORT}:80 ${FULL_ECR_NAME}"
+                        """
+                    }
+                }
+            }
+        }
     }
 
     post {
