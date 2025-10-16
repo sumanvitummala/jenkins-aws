@@ -132,26 +132,24 @@ stage('Terraform Apply') {
             def instanceIP = readFile('instance_ip.txt').trim()
             echo "✅ EC2 Instance IP: ${instanceIP}"
 
-            withCredentials([sshUserPrivateKey(
-                credentialsId: 'ec2-key',
-                keyFileVariable: 'EC2_KEY_PATH',
-                usernameVariable: 'EC2_USER'
-            )]) {
-                // Stop and remove existing container
-                bat """
-                ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" ec2-user@${instanceIP} ^
-                "docker stop my-container || true && docker rm my-container || true"
-                """
+            // Path to the permanent .pem key
+            def pemPath = "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem"
 
-                // Run the new container from ECR
-                bat """
-                ssh -o StrictHostKeyChecking=no -i "%EC2_KEY_PATH%" ec2-user@${instanceIP} ^
-                "docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
-                """
-            }
+            // Stop and remove existing container
+            bat """
+            ssh -o StrictHostKeyChecking=no -i "${pemPath}" ec2-user@${instanceIP} ^
+            "docker stop my-container || true && docker rm my-container || true"
+            """
+
+            // Run the new container from ECR
+            bat """
+            ssh -o StrictHostKeyChecking=no -i "${pemPath}" ec2-user@${instanceIP} ^
+            "docker run -d --name my-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
+            """
         }
     }
 }
+
 
 
 
