@@ -12,12 +12,19 @@ pipeline {
         TERRAFORM_DIR = '.'
 
         EC2_USER = 'ec2-user'
-        SSH_KEY_PATH = 'C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem'
+        SSH_KEY_CREDENTIALS = 'ec2-key'
         CONTAINER_NAME = 'web-container'
         CONTAINER_PORT = '80'
     }
 
     stages {
+
+        stage('Clean Workspace') {
+            steps {
+                echo "🧹 Cleaning old workspace..."
+                deleteDir()
+            }
+        }
 
         stage('Build Docker Image') {
             steps {
@@ -58,7 +65,7 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                echo "🚀 Applying Terraform..."
+                echo "🚀 Applying Terraform Configuration..."
                 dir("${TERRAFORM_DIR}") {
                     withCredentials([
                         string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
@@ -68,7 +75,6 @@ pipeline {
                         set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
                         set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
                         set PATH=%PATH%;C:/Terraform
-                        terraform init
                         terraform apply -auto-approve
                         terraform output -raw instance_public_ip > instance_ip.txt
                         """
@@ -81,12 +87,16 @@ pipeline {
             steps {
                 echo "🚀 Deploying Docker container on EC2..."
                 script {
+                    // Read the current Elastic IP from Terraform output
                     def instanceIp = readFile('instance_ip.txt').trim()
                     echo "✅ EC2 Elastic IP: ${instanceIp}"
 
                     powershell """
                     echo '🔹 Connecting to EC2 instance...'
-                    ssh -o StrictHostKeyChecking=no -i "${SSH_KEY_PATH}" ec2-user@${instanceIp} '
+                    ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instanceIp} '
+                        echo "✅ Connected to EC2"
+
+                        # Install Docker if not present
                         if ! command -v docker >/dev/null 2>&1; then
                             echo "Installing Docker..."
                             sudo yum install -y docker
@@ -116,7 +126,6 @@ pipeline {
         failure { echo "❌ Pipeline failed. Check console output." }
     }
 }
-
 
 
 
