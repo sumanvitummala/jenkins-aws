@@ -50,7 +50,7 @@ pipeline {
         echo "🚀 Deploying Docker container on EC2..."
 
         // Replace the values below with your EC2 info
-        def EC2_IP = "YOUR_EC2_PUBLIC_IP"
+        def EC2_IP = "3.108.89.73"
         def PEM_PATH = "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem"
         def ECR_IMAGE = "987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
 
