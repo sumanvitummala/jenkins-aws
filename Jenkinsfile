@@ -68,7 +68,6 @@ pipeline {
                         set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
                         set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
                         set PATH=%PATH%;C:/Terraform
-                        terraform init
                         terraform apply -auto-approve
                         terraform output -raw instance_public_ip > instance_ip.txt
                         """
@@ -81,27 +80,30 @@ pipeline {
             steps {
                 echo "🚀 Deploying Docker container on EC2..."
                 script {
-                    def instanceIp = readFile('instance_ip.txt').trim()
-                    echo "✅ EC2 Elastic IP: ${instanceIp}"
+                    def ec2Ip = readFile('instance_ip.txt').trim()
+                    echo "✅ EC2 Elastic IP: ${ec2Ip}"
 
                     powershell """
                     echo '🔹 Connecting to EC2 instance...'
-                    ssh -o StrictHostKeyChecking=no -i "${SSH_KEY_PATH}" ec2-user@${instanceIp} '
+                    ssh -o StrictHostKeyChecking=no -i "${SSH_KEY_PATH}" ${EC2_USER}@${ec2Ip} '
                         echo "✅ Connected to EC2"
-
-                        # Install Docker if not present
+                        
                         if ! command -v docker >/dev/null 2>&1; then
+                            echo "Installing Docker..."
                             sudo yum install -y docker
                             sudo systemctl start docker
                             sudo systemctl enable docker
                             sudo usermod -aG docker ec2-user
                         fi
 
-                        # Pull and run container
-                        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                        echo "🛠 Pulling image from ECR..."
+                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
                         docker stop ${CONTAINER_NAME} || true
                         docker rm ${CONTAINER_NAME} || true
+
                         docker run -d --name ${CONTAINER_NAME} -p ${CONTAINER_PORT}:${CONTAINER_PORT} ${FULL_ECR_NAME}
+
                         echo "🚀 Container started successfully!"
                     '
                     """
@@ -115,6 +117,7 @@ pipeline {
         failure { echo "❌ Pipeline failed. Check console output." }
     }
 }
+
 
 
 
