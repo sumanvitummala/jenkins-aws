@@ -15,12 +15,7 @@ pipeline {
             }
         }
 
-        stage('Clean Workspace') {
-            steps {
-                echo "🧹 Cleaning old workspace..."
-                deleteDir()
-            }
-        }
+        
 
         stage('Build Docker Image') {
             steps {
