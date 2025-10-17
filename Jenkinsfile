@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         AWS_REGION = 'ap-south-1'
-        ECR_REPO = 'your-ecr-repo-name'
+        ECR_REPO = 'docker-image'
         IMAGE_TAG = '1.0'
         TF_VAR_key_name = 'jenkins-key'
     }
