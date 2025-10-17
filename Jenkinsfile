@@ -46,18 +46,26 @@ pipeline {
         }
 
         stage('Deploy Docker Container on EC2') {
-            steps {
-                script {
-                    def instance_ip = readFile('instance_ip.txt').trim()
-                    echo "🚀 Deploying Docker container on EC2..."
-                    bat """
-                        ssh -o StrictHostKeyChecking=no -i "${SSH_KEY_PATH}" ec2-user@${instance_ip} ^
-                        "docker stop docker-container || true && docker rm docker-container || true && docker pull ${ECR_REPO}:${IMAGE_TAG} && docker run -d --name docker-container -p 80:80 ${ECR_REPO}:${IMAGE_TAG}"
-                    """
-                }
-            }
-        }
+    steps {
+        echo "🚀 Deploying Docker container on EC2..."
+
+        // Replace the values below with your EC2 info
+        def EC2_IP = "YOUR_EC2_PUBLIC_IP"
+        def PEM_PATH = "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem"
+        def ECR_IMAGE = "987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
+
+        // Run commands on EC2 via SSH
+        bat """
+        ssh -i ${PEM_PATH} -o StrictHostKeyChecking=no ec2-user@${EC2_IP} ^
+        "aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com &&
+        docker pull ${ECR_IMAGE} &&
+        docker stop my-app || true &&
+        docker rm my-app || true &&
+        docker run -d --name my-app -p 80:80 ${ECR_IMAGE}"
+        """
     }
+}
+
 
     post {
         success {
