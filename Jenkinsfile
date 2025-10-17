@@ -14,8 +14,8 @@ pipeline {
         TERRAFORM_DIR = '.'   // terraform.tf is in repo root
 
         // EC2 configuration
-        EC2_USER = 'ec2-user'  
-        SSH_KEY_PATH = 'C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem'
+        EC2_USER = 'ec2-user'
+        SSH_KEY_CREDENTIALS = 'ec2-key'
         CONTAINER_NAME = 'web-container'
         CONTAINER_PORT = '80'
     }
@@ -44,8 +44,9 @@ pipeline {
                     string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
                     bat """
-                    aws ecr get-login-password --region ${AWS_REGION} ^
-                    | docker login --username AWS --password-stdin ${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                    set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                    set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                    aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
                     """
                 }
             }
@@ -70,6 +71,8 @@ pipeline {
                         string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
                     ]) {
                         bat """
+                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
                         set PATH=%PATH%;C:/Terraform
                         terraform apply -auto-approve
                         terraform output -raw instance_public_ip > instance_ip.txt
@@ -86,30 +89,43 @@ pipeline {
                     def instanceIp = readFile('instance_ip.txt').trim()
                     echo "✅ EC2 Instance IP: ${instanceIp}"
 
+                    // Wait for SSH to be available
                     powershell """
-                    echo '🔹 Connecting to EC2 instance...'
-                    ssh -o StrictHostKeyChecking=no -i "${SSH_KEY_PATH}" ${EC2_USER}@${instanceIp} '
-                        echo "✅ Connected to EC2"
+                    \$ip = '${instanceIp}'
+                    Write-Host '⏳ Waiting for EC2 to be reachable on SSH...'
+                    \$ready = \$false
+                    for (\$i = 0; \$i -lt 12; \$i++) {
+                        if (Test-NetConnection -ComputerName \$ip -Port 22 -WarningAction SilentlyContinue).TcpTestSucceeded {
+                            \$ready = \$true
+                            break
+                        }
+                        Start-Sleep -Seconds 10
+                    }
+                    if (-not \$ready) { throw '❌ EC2 instance is not reachable via SSH' }
+                    Write-Host '✅ EC2 is reachable on SSH'
+                    """
 
-                        # Install Docker if not installed
+                    // SSH and deploy Docker
+                    powershell """
+                    ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instanceIp} '
+                        echo "✅ Connected to EC2"
+                        
                         if ! command -v docker >/dev/null 2>&1; then
                             echo "Installing Docker..."
                             sudo yum install -y docker
                             sudo systemctl start docker
                             sudo systemctl enable docker
-                            sudo usermod -aG docker ${EC2_USER}
+                            sudo usermod -aG docker ec2-user
                         fi
 
-                        # Pull and run the latest image
-                        echo "🛠 Pulling image from ECR..."
-                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com
 
-                        docker stop ${CONTAINER_NAME} || true
-                        docker rm ${CONTAINER_NAME} || true
+                        docker stop web-container || true
+                        docker rm web-container || true
 
-                        docker run -d --name ${CONTAINER_NAME} -p ${CONTAINER_PORT}:${CONTAINER_PORT} ${FULL_ECR_NAME}
+                        docker run -d --name web-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0
 
-                        echo "🚀 Container started successfully!"
+                        echo "🚀 Docker container deployed successfully!"
                     '
                     """
                 }
@@ -127,3 +143,4 @@ pipeline {
         }
     }
 }
+
