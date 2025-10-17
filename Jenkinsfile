@@ -74,6 +74,8 @@ pipeline {
                 set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
                 set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
                 set PATH=%PATH%;C:/Terraform
+
+                terraform init
                 terraform apply -auto-approve
                 terraform output -raw instance_public_ip > instance_ip.txt
                 """
@@ -81,6 +83,7 @@ pipeline {
         }
     }
 }
+
 
 
     stage('Deploy Docker Container on EC2') {
