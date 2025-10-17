@@ -2,108 +2,63 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = 'ap-south-1'
-        ECR_REPO = 'docker-image'
-        IMAGE_TAG = '1.0'
-        TF_VAR_key_name = 'jenkins-key'
+        IMAGE_TAG = "1.0"
+        ECR_REPO = "987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image"
+        AWS_REGION = "ap-south-1"
+        SSH_KEY_PATH = "C:/Users/AppuSummi/.ssh/sumanvi-key.pem"
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Clean Workspace') {
             steps {
-                echo '🧹 Cleaning old workspace...'
+                echo "🧹 Cleaning old workspace..."
                 deleteDir()
-                // ✅ Re-clone repo after cleaning
-                checkout scm
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    echo '🐳 Building Docker image...'
-                    if (fileExists('Dockerfile')) {
-                        bat 'docker build -t docker-image:1.0 .'
-                    } else {
-                        error("❌ Dockerfile not found! Make sure it exists in your repository root.")
-                    }
-                }
+                echo "🐳 Building Docker image..."
+                bat "docker build -t docker-image:${IMAGE_TAG} ."
             }
         }
 
         stage('Tag Docker Image for ECR') {
             steps {
-                echo '🏷️ Tagging Docker image for ECR...'
-                bat 'docker tag docker-image:1.0 %ECR_REPO%:1.0'
+                echo "🏷️ Tagging Docker image for ECR..."
+                bat "docker tag docker-image:${IMAGE_TAG} ${ECR_REPO}:${IMAGE_TAG}"
             }
         }
 
         stage('Login to AWS ECR') {
             steps {
-                echo '🔑 Logging into AWS ECR...'
-                bat 'aws ecr get-login-password --region %AWS_REGION% | docker login --username AWS --password-stdin %ECR_REPO%'
+                echo "🔑 Logging into AWS ECR..."
+                bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}"
             }
         }
 
         stage('Push Docker Image to ECR') {
             steps {
-                echo '📦 Pushing Docker image to ECR...'
-                bat 'docker push %ECR_REPO%:1.0'
-            }
-        }
-
-        stage('Terraform Apply') {
-            steps {
-                script {
-                    echo '🌍 Running Terraform Apply...'
-                    try {
-                        bat '''
-                            cd terraform
-                            terraform init -input=false
-                            terraform apply -auto-approve -input=false
-                        '''
-                    } catch (err) {
-                        echo "⚠️ Terraform Apply failed: ${err}"
-                        error("Terraform failed. Please check AWS IAM permissions (ec2:AllocateAddress, etc.)")
-                    }
-                }
+                echo "📤 Pushing Docker image to ECR..."
+                bat "docker push ${ECR_REPO}:${IMAGE_TAG}"
             }
         }
 
         stage('Deploy Docker Container on EC2') {
             steps {
                 script {
-                    echo '🚀 Deploying Docker container on EC2...'
-                    def ipFile = "terraform/instance_ip.txt"
-                    def ec2Ip = ""
-
-                    // Try reading IP from Terraform output file
-                    if (fileExists(ipFile)) {
-                        ec2Ip = readFile(ipFile).trim()
-                    } else {
-                        try {
-                            ec2Ip = bat(script: 'cd terraform && terraform output -raw instance_public_ip', returnStdout: true).trim()
-                        } catch (e) {
-                            echo "⚠️ Could not read instance_public_ip from Terraform."
-                        }
-                    }
-
-                    if (!ec2Ip) {
-                        error("❌ No EC2 IP found! Check Terraform output or IAM permissions.")
-                    }
-
-                    echo "✅ EC2 Elastic IP: ${ec2Ip}"
-
-                    // Try SSH only if IP found
-                    try {
-                        bat """
-                            echo 🔹 Connecting to EC2 instance...
-                            ssh -o StrictHostKeyChecking=no ec2-user@${ec2Ip} "docker run -d -p 80:80 %ECR_REPO%:1.0"
-                        """
-                    } catch (e) {
-                        echo "⚠️ SSH Connection failed: ${e}"
-                        error("Could not connect to EC2 instance at ${ec2Ip}")
-                    }
+                    def instance_ip = readFile('instance_ip.txt').trim()
+                    echo "🚀 Deploying Docker container on EC2..."
+                    bat """
+                        ssh -o StrictHostKeyChecking=no -i "${SSH_KEY_PATH}" ec2-user@${instance_ip} ^
+                        "docker stop docker-container || true && docker rm docker-container || true && docker pull ${ECR_REPO}:${IMAGE_TAG} && docker run -d --name docker-container -p 80:80 ${ECR_REPO}:${IMAGE_TAG}"
+                    """
                 }
             }
         }
@@ -111,12 +66,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Deployment Successful!'
+            echo "✅ Pipeline completed successfully!"
         }
         failure {
-            echo '❌ Pipeline failed. Check console output for details.'
+            echo "❌ Pipeline failed. Check console output for details."
         }
     }
 }
-
-
