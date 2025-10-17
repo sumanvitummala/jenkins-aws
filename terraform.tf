@@ -35,7 +35,9 @@ resource "aws_security_group" "web_sg" {
 resource "aws_instance" "my_ec2" {
   ami                    = "ami-0f9708d1cd2cfee41"  # Replace with your AMI
   instance_type          = "t3.micro"
-  key_name               = "sumanvi-key"            # Your key pair
+  key_name               = "sumanvi-key"  
+  subnet_id               = aws_subnet.public_subnet.id
+  associate_public_ip_address = true          # Your key pair
   vpc_security_group_ids = [aws_security_group.web_sg.id]
 
   tags = {
