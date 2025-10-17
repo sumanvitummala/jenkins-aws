@@ -12,27 +12,12 @@ pipeline {
         TERRAFORM_DIR = '.'
 
         EC2_USER = 'ec2-user'
-        SSH_KEY_CREDENTIALS = 'ec2-key'
+        SSH_KEY_PATH = "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem"
         CONTAINER_NAME = 'web-container'
         CONTAINER_PORT = '80'
     }
 
     stages {
-
-        stage('Checkout SCM') {
-            steps {
-                echo "📥 Checking out Git repository..."
-                checkout scm
-            }
-        }
-
-        stage('Clean Temporary Workspace Files') {
-            steps {
-                echo "🧹 Cleaning old temporary files..."
-                // Only remove old outputs or temporary files, keep repo files (like Dockerfile)
-                bat 'if exist instance_ip.txt del /f /q instance_ip.txt'
-            }
-        }
 
         stage('Build Docker Image') {
             steps {
@@ -71,9 +56,9 @@ pipeline {
             }
         }
 
-        stage('Terraform Apply') {
+        stage('Terraform Init & Apply') {
             steps {
-                echo "🚀 Applying Terraform Configuration..."
+                echo "🚀 Initializing and applying Terraform..."
                 dir("${TERRAFORM_DIR}") {
                     withCredentials([
                         string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
@@ -83,6 +68,7 @@ pipeline {
                         set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
                         set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
                         set PATH=%PATH%;C:/Terraform
+                        terraform init
                         terraform apply -auto-approve
                         terraform output -raw instance_public_ip > instance_ip.txt
                         """
@@ -96,13 +82,14 @@ pipeline {
                 echo "🚀 Deploying Docker container on EC2..."
                 script {
                     def instanceIp = readFile('instance_ip.txt').trim()
+                    if (!instanceIp) {
+                        error "❌ EC2 instance IP is empty. Terraform output failed."
+                    }
                     echo "✅ EC2 Elastic IP: ${instanceIp}"
 
                     powershell """
                     echo '🔹 Connecting to EC2 instance...'
-                    ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instanceIp} '
-                        echo "✅ Connected to EC2"
-                        
+                    ssh -o StrictHostKeyChecking=no -i "${SSH_KEY_PATH}" ${EC2_USER}@${instanceIp} '
                         if ! command -v docker >/dev/null 2>&1; then
                             echo "Installing Docker..."
                             sudo yum install -y docker
@@ -112,12 +99,12 @@ pipeline {
                         fi
 
                         echo "🛠 Pulling image from ECR..."
-                        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com
+                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
 
-                        docker stop web-container || true
-                        docker rm web-container || true
+                        docker stop ${CONTAINER_NAME} || true
+                        docker rm ${CONTAINER_NAME} || true
 
-                        docker run -d --name web-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0
+                        docker run -d --name ${CONTAINER_NAME} -p ${CONTAINER_PORT}:${CONTAINER_PORT} ${FULL_ECR_NAME}
 
                         echo "🚀 Container started successfully!"
                     '
@@ -132,4 +119,5 @@ pipeline {
         failure { echo "❌ Pipeline failed. Check console output." }
     }
 }
+
 
