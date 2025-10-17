@@ -1,4 +1,4 @@
-terraform import aws_instance.my_ec2 i-0b83b3b2b8e15b0f8
+
 terraform {
   required_providers {
     aws = {
