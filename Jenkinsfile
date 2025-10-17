@@ -22,13 +22,19 @@ pipeline {
         stage('Clean Workspace') {
             steps {
                 echo "🧹 Cleaning old workspace..."
-                deleteDir()
+                deleteDir() // wipes workspace safely
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 echo "🐳 Building Docker image..."
+                // Ensure Dockerfile exists
+                script {
+                    if (!fileExists('Dockerfile')) {
+                        error "Dockerfile not found in the workspace!"
+                    }
+                }
                 bat "docker build -t ${IMAGE_NAME} ."
             }
         }
@@ -64,6 +70,9 @@ pipeline {
         }
 
         stage('Terraform Apply') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
             steps {
                 echo "🚀 Applying Terraform Configuration..."
                 dir("${TERRAFORM_DIR}") {
@@ -87,7 +96,6 @@ pipeline {
             steps {
                 echo "🚀 Deploying Docker container on EC2..."
                 script {
-                    // Read the current Elastic IP from Terraform output
                     def instanceIp = readFile('instance_ip.txt').trim()
                     echo "✅ EC2 Elastic IP: ${instanceIp}"
 
@@ -95,8 +103,7 @@ pipeline {
                     echo '🔹 Connecting to EC2 instance...'
                     ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instanceIp} '
                         echo "✅ Connected to EC2"
-
-                        # Install Docker if not present
+                        
                         if ! command -v docker >/dev/null 2>&1; then
                             echo "Installing Docker..."
                             sudo yum install -y docker
@@ -108,10 +115,10 @@ pipeline {
                         echo "🛠 Pulling image from ECR..."
                         aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com
 
-                        docker stop ${CONTAINER_NAME} || true
-                        docker rm ${CONTAINER_NAME} || true
+                        docker stop web-container || true
+                        docker rm web-container || true
 
-                        docker run -d --name ${CONTAINER_NAME} -p 80:80 ${FULL_ECR_NAME}
+                        docker run -d --name web-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0
 
                         echo "🚀 Container started successfully!"
                     '
@@ -126,10 +133,3 @@ pipeline {
         failure { echo "❌ Pipeline failed. Check console output." }
     }
 }
-
-
-
-
-
-
-
