@@ -14,8 +14,8 @@ pipeline {
         TERRAFORM_DIR = '.'   // terraform.tf is in repo root
 
         // EC2 configuration
-        EC2_USER = 'ec2-user'
-        SSH_KEY_CREDENTIALS = 'ec2-key'
+        EC2_USER = 'ec2-user'  // make sure this is correct for your AMI
+        SSH_KEY_CREDENTIALS = 'ec2-key' // Jenkins SSH key credential ID
         CONTAINER_NAME = 'web-container'
         CONTAINER_PORT = '80'
     }
@@ -89,30 +89,28 @@ pipeline {
                     def instanceIp = readFile('instance_ip.txt').trim()
                     echo "✅ EC2 Instance IP: ${instanceIp}"
 
-                    // Wait for SSH to be available
                     powershell """
-                    $ip = '52.66.197.67'
-Write-Host '⏳ Waiting for EC2 to be reachable on SSH...'
-$ready = $false
-for ($i = 0; $i -lt 12; $i++) {
-    if ((Test-NetConnection -ComputerName $ip -Port 22 -WarningAction SilentlyContinue).TcpTestSucceeded) {
-        $ready = $true
-        break
-    }
-    Start-Sleep -Seconds 10
-}
-if (-not $ready) { 
-    throw '❌ EC2 instance is not reachable via SSH' 
-}
-Write-Host '✅ EC2 is reachable on SSH'
+                    # Wait for EC2 to be reachable on SSH
+                    \$ip = '${instanceIp}'
+                    Write-Host '⏳ Waiting for EC2 to be reachable on SSH...'
+                    \$ready = \$false
+                    for (\$i = 0; \$i -lt 12; \$i++) {
+                        if ((Test-NetConnection -ComputerName \$ip -Port 22 -WarningAction SilentlyContinue).TcpTestSucceeded) {
+                            \$ready = \$true
+                            break
+                        }
+                        Start-Sleep -Seconds 10
+                    }
+                    if (-not \$ready) { 
+                        throw '❌ EC2 instance is not reachable via SSH' 
+                    }
+                    Write-Host '✅ EC2 is reachable on SSH'
 
-                    """
-
-                    // SSH and deploy Docker
-                    powershell """
-                    ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instanceIp} '
+                    # Connect and deploy Docker container
+                    ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@\$ip '
                         echo "✅ Connected to EC2"
                         
+                        # Install Docker if not installed
                         if ! command -v docker >/dev/null 2>&1; then
                             echo "Installing Docker..."
                             sudo yum install -y docker
@@ -121,6 +119,8 @@ Write-Host '✅ EC2 is reachable on SSH'
                             sudo usermod -aG docker ec2-user
                         fi
 
+                        # Pull and run the latest image
+                        echo "🛠 Pulling image from ECR..."
                         aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com
 
                         docker stop web-container || true
@@ -128,13 +128,12 @@ Write-Host '✅ EC2 is reachable on SSH'
 
                         docker run -d --name web-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0
 
-                        echo "🚀 Docker container deployed successfully!"
+                        echo "🚀 Container started successfully!"
                     '
                     """
                 }
             }
         }
-
     }
 
     post {
@@ -146,4 +145,5 @@ Write-Host '✅ EC2 is reachable on SSH'
         }
     }
 }
+
 
