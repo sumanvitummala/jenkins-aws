@@ -91,18 +91,21 @@ pipeline {
 
                     // Wait for SSH to be available
                     powershell """
-                    \$ip = '${instanceIp}'
-                    Write-Host '⏳ Waiting for EC2 to be reachable on SSH...'
-                    \$ready = \$false
-                    for (\$i = 0; \$i -lt 12; \$i++) {
-                        if (Test-NetConnection -ComputerName \$ip -Port 22 -WarningAction SilentlyContinue).TcpTestSucceeded {
-                            \$ready = \$true
-                            break
-                        }
-                        Start-Sleep -Seconds 10
-                    }
-                    if (-not \$ready) { throw '❌ EC2 instance is not reachable via SSH' }
-                    Write-Host '✅ EC2 is reachable on SSH'
+                    $ip = '52.66.197.67'
+Write-Host '⏳ Waiting for EC2 to be reachable on SSH...'
+$ready = $false
+for ($i = 0; $i -lt 12; $i++) {
+    if ((Test-NetConnection -ComputerName $ip -Port 22 -WarningAction SilentlyContinue).TcpTestSucceeded) {
+        $ready = $true
+        break
+    }
+    Start-Sleep -Seconds 10
+}
+if (-not $ready) { 
+    throw '❌ EC2 instance is not reachable via SSH' 
+}
+Write-Host '✅ EC2 is reachable on SSH'
+
                     """
 
                     // SSH and deploy Docker
