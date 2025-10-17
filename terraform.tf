@@ -1,3 +1,4 @@
+terraform import aws_instance.my_ec2 i-0b83b3b2b8e15b0f8
 terraform {
   required_providers {
     aws = {
@@ -51,19 +52,19 @@ resource "aws_security_group" "web_sg" {
   }
 }
 
-# EC2 Instance
 resource "aws_instance" "my_ec2" {
-  ami                    = "ami-0f9708d1cd2cfee41"  # Your AMI
-  instance_type          = "t3.micro"
-  key_name               = "sumanvi-key"
-  subnet_id              = aws_subnet.public_subnet.id
+  ami                    = "ami-0f9708d1cd2cfee41" # must match existing
+  instance_type          = "t3.micro"             # must match existing
+  key_name               = "sumanvi-key"          # must match existing
+  subnet_id              = "subnet-0f4621a9ad2c4d095"
+  vpc_security_group_ids = ["sg-08bba5800c8844776"]
   associate_public_ip_address = true
-  vpc_security_group_ids = [aws_security_group.web_sg.id]
 
   tags = {
     Name = "Sumanvi-EC2"
   }
 }
+
 
 
 # Output public IP of the EC2 instance
