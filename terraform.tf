@@ -12,7 +12,7 @@ resource "aws_security_group" "web_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["<Jenkins_IP>/32"]  # or ["0.0.0.0/0"] for testing
+    cidr_blocks = ["183.82.51.10/32"]  # or ["0.0.0.0/0"] for testing
   }
 
   ingress {
