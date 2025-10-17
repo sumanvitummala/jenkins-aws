@@ -1,47 +1,25 @@
-
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-  required_version = ">= 1.3.0"
-}
-
+# Step 1: Specify the AWS provider
 provider "aws" {
-  region = "ap-south-1"
+  region = "ap-south-1"   # Mumbai region
 }
 
-# VPC (if you don’t have one)
-resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
-}
-
-# Subnet
-resource "aws_subnet" "public_subnet" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.1.0/24"
-  map_public_ip_on_launch = true
-}
-
-# Security Group
+# Step 2: Create a security group for EC2
 resource "aws_security_group" "web_sg" {
-  name   = "web_sg"
-  vpc_id = aws_vpc.main.id
+  name_prefix       = "web-sg-new-"
+  description = "Allow SSH and HTTP"
 
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]  # SSH access from anywhere (for learning only)
   }
 
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]  # HTTP access from anywhere
   }
 
   egress {
@@ -50,25 +28,33 @@ resource "aws_security_group" "web_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-}
-
-resource "aws_instance" "my_ec2" {
-  ami                    = "ami-0f9708d1cd2cfee41" # must match existing
-  instance_type          = "t3.micro"             # must match existing
-  key_name               = "sumanvi-key"          # must match existing
-  subnet_id              = "subnet-0f4621a9ad2c4d095"
-  vpc_security_group_ids = ["sg-08bba5800c8844776"]
-  associate_public_ip_address = true
 
   tags = {
-    Name = "Sumanvi-EC2"
+    Name = "WebSecurityGroup"
+  }
+
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
+# Step 3: Create an EC2 instance
+resource "aws_instance" "my_ec2" {
+  ami           = "ami-0f9708d1cd2cfee41"  # Replace with valid AMI ID
+  instance_type = "t3.micro"               # Free-tier instance
+  key_name      = "sumanvi-key"             # Replace with your AWS EC2 key pair
+  vpc_security_group_ids = [aws_security_group.web_sg.id]
 
-
-# Output public IP of the EC2 instance
+  tags = {
+    Name = "Sumanvi-EC2"  # Change to your name
+  }
+}
+output "instance_id" {
+  value       = aws_instance.my_ec2.id
+  description = "The ID of the EC2 instance"
+}
 output "instance_public_ip" {
   value = aws_instance.my_ec2.public_ip
+  description = "The public IP of the EC2 instance"
 }
-
