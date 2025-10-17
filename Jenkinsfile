@@ -6,7 +6,7 @@ pipeline {
         REGION = 'ap-south-1'
         ECR_REPO = '987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0'
         DOCKER_IMAGE = 'docker-image:1.0'
-        KEY_PATH = 'sumanvi-key.pem' // path to your private key
+        KEY_PATH = '"C:\Users\AppuSummi\.ssh\sumanvi-key.pem"' // path to your private key
         SSH_USER = 'ec2-user'
     }
 
