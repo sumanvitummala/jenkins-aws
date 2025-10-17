@@ -12,7 +12,7 @@ pipeline {
         TERRAFORM_DIR = '.'
 
         EC2_USER = 'ec2-user'
-        SSH_KEY_CREDENTIALS = 'ec2-key'
+        SSH_KEY_PATH = 'C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem'
         CONTAINER_NAME = 'web-container'
         CONTAINER_PORT = '80'
     }
@@ -57,9 +57,6 @@ pipeline {
         }
 
         stage('Terraform Apply') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
             steps {
                 echo "🚀 Applying Terraform Configuration..."
                 dir("${TERRAFORM_DIR}") {
@@ -71,6 +68,7 @@ pipeline {
                         set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
                         set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
                         set PATH=%PATH%;C:/Terraform
+                        terraform init
                         terraform apply -auto-approve
                         terraform output -raw instance_public_ip > instance_ip.txt
                         """
@@ -88,25 +86,22 @@ pipeline {
 
                     powershell """
                     echo '🔹 Connecting to EC2 instance...'
-                    ssh -o StrictHostKeyChecking=no -i "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem" ec2-user@${instanceIp} '
+                    ssh -o StrictHostKeyChecking=no -i "${SSH_KEY_PATH}" ec2-user@${instanceIp} '
                         echo "✅ Connected to EC2"
-                        
+
+                        # Install Docker if not present
                         if ! command -v docker >/dev/null 2>&1; then
-                            echo "Installing Docker..."
                             sudo yum install -y docker
                             sudo systemctl start docker
                             sudo systemctl enable docker
                             sudo usermod -aG docker ec2-user
                         fi
 
-                        echo "🛠 Pulling image from ECR..."
-                        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com
-
-                        docker stop web-container || true
-                        docker rm web-container || true
-
-                        docker run -d --name web-container -p 80:80 987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0
-
+                        # Pull and run container
+                        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                        docker stop ${CONTAINER_NAME} || true
+                        docker rm ${CONTAINER_NAME} || true
+                        docker run -d --name ${CONTAINER_NAME} -p ${CONTAINER_PORT}:${CONTAINER_PORT} ${FULL_ECR_NAME}
                         echo "🚀 Container started successfully!"
                     '
                     """
@@ -120,6 +115,7 @@ pipeline {
         failure { echo "❌ Pipeline failed. Check console output." }
     }
 }
+
 
 
 
