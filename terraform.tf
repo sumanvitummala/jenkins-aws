@@ -5,21 +5,21 @@ provider "aws" {
 
 # Step 2: Create a security group for EC2
 resource "aws_security_group" "web_sg" {
-  name_prefix = "web-sg-new-"
-  description = "Allow SSH and HTTP"
+  name   = "web_sg"
+  vpc_id = aws_vpc.main.id
 
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # SSH access
+    cidr_blocks = ["<Jenkins_IP>/32"]  # or ["0.0.0.0/0"] for testing
   }
 
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # HTTP access
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -28,15 +28,8 @@ resource "aws_security_group" "web_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "WebSecurityGroup"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
+
 
 # Step 3: Create an EC2 instance
 resource "aws_instance" "my_ec2" {
