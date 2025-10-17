@@ -19,22 +19,24 @@ pipeline {
 
     stages {
 
-        stage('Clean Workspace') {
+        stage('Checkout SCM') {
             steps {
-                echo "🧹 Cleaning old workspace..."
-                deleteDir() // wipes workspace safely
+                echo "📥 Checking out Git repository..."
+                checkout scm
+            }
+        }
+
+        stage('Clean Temporary Workspace Files') {
+            steps {
+                echo "🧹 Cleaning old temporary files..."
+                // Only remove old outputs or temporary files, keep repo files (like Dockerfile)
+                bat 'if exist instance_ip.txt del /f /q instance_ip.txt'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 echo "🐳 Building Docker image..."
-                // Ensure Dockerfile exists
-                script {
-                    if (!fileExists('Dockerfile')) {
-                        error "Dockerfile not found in the workspace!"
-                    }
-                }
                 bat "docker build -t ${IMAGE_NAME} ."
             }
         }
@@ -70,9 +72,6 @@ pipeline {
         }
 
         stage('Terraform Apply') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
             steps {
                 echo "🚀 Applying Terraform Configuration..."
                 dir("${TERRAFORM_DIR}") {
@@ -133,3 +132,4 @@ pipeline {
         failure { echo "❌ Pipeline failed. Check console output." }
     }
 }
+
