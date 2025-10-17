@@ -53,7 +53,6 @@ resource "aws_instance" "my_ec2" {
 # Step 4: Allocate Elastic IP and associate with EC2
 resource "aws_eip" "web_eip" {
   instance   = aws_instance.my_ec2.id
-  vpc        = true
   depends_on = [aws_instance.my_ec2]
 }
 
