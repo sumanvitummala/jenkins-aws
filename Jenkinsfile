@@ -48,24 +48,23 @@ pipeline {
         stage('Deploy Docker Container on EC2') {
     steps {
         echo "🚀 Deploying Docker container on EC2..."
+        script {
+            def EC2_IP = "3.108.89.73"
+            def PEM_PATH = "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem"
+            def ECR_IMAGE = "987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
 
-        // Replace the values below with your EC2 info
-        def EC2_IP = "3.108.89.73"
-        def PEM_PATH = "C:\\Users\\AppuSummi\\.ssh\\sumanvi-key.pem"
-        def ECR_IMAGE = "987686461903.dkr.ecr.ap-south-1.amazonaws.com/docker-image:1.0"
-
-        // Run commands on EC2 via SSH
-        bat """
-        ssh -i ${PEM_PATH} -o StrictHostKeyChecking=no ec2-user@${EC2_IP} ^
-        "aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com &&
-        docker pull ${ECR_IMAGE} &&
-        docker stop my-app || true &&
-        docker rm my-app || true &&
-        docker run -d --name my-app -p 80:80 ${ECR_IMAGE}"
-        """
+            bat """
+            ssh -i ${PEM_PATH} -o StrictHostKeyChecking=no ec2-user@${EC2_IP} ^
+            "aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 987686461903.dkr.ecr.ap-south-1.amazonaws.com &&
+            docker pull ${ECR_IMAGE} &&
+            docker stop my-app || true &&
+            docker rm my-app || true &&
+            docker run -d --name my-app -p 80:80 ${ECR_IMAGE}"
+            """
+        }
     }
 }
-    }
+
 
     post {
         success {
